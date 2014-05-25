@@ -53,6 +53,8 @@ class DatabaseClient
 end
 
 class MysqlSqlDatabaseClient < DatabaseClient
+
+  # This script will create the tracking table if it doesn't already exist.
   CREATE_VERSION_TABLE =<<CREATE_VERSION_TABLE
   CREATE TABLE IF NOT EXISTS schema_version
   (
@@ -61,6 +63,8 @@ class MysqlSqlDatabaseClient < DatabaseClient
     applied_timestamp timestamp
   )
 CREATE_VERSION_TABLE
+
+  # This script returns the array of applied scripts.
   GET_APPLIED_SCRIPTS =<<GET_APPLIED_SCRIPTS
   SELECT script_name from
   schema_version
@@ -74,27 +78,32 @@ GET_APPLIED_SCRIPTS
     @client.query(sql_text)
   end
 
+  # Returns a single column as a vector/array.
   def get_single_column sql_text
     @client.query(sql_text, :as => :array).map{ |row| row[0] }
   end
 
   def record_script_applied sql_file
+    # Since mysql2 does not support parameterized queries, we're inlining the SQL statement.
     execute_sql "insert into schema_version (script_name, applied_timestamp) values ('#{sql_file}', NOW())"
   end
 end
 
-schema_dir = ARGV[0]
 USAGE=<<USAGE
 usage: update_schema schema_dir
  Where schema_dir contains a database configuration file (database.yml) and SQL script files.
 USAGE
-unless schema_dir
+
+schema_dir = ARGV[0]
+unless schema_dir && Dir.exists?(schema_dir)
   puts USAGE
   exit 1
 end
+
 schema_dir = schema_dir.chomp('/')
 environment = ENV['APP_ENV'] || "development"
 database_yml = "#{schema_dir}/database.yml"
+
 unless File.exists? database_yml
   puts "Could not find #{database_yml}", USAGE
   exit 2
@@ -108,8 +117,12 @@ db.confirm_version_table
 applied_scripts = db.get_applied_scripts
 
 script_files = Dir["#{schema_dir}/*.sql"]
+
+# Do not run any script files that have been run.
 (script_files - applied_scripts).each do |script|
+  # Skip any files that does not start with a sequence of numbers.
   next unless File.basename(script) =~ /^\d+/
+
   puts "Running #{script}"
   db.apply_script script
 end
