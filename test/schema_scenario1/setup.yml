@@ -1,0 +1,5 @@
+development:
+  adapter: mysql2
+  username: test_admin
+  password: password1
+  host: locahost

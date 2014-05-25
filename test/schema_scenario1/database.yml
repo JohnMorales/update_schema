@@ -1,0 +1,6 @@
+development:
+  adapter: mysql2
+  database: update_schema_scenario1
+  username: test_user
+  password: password2
+  host: localhost

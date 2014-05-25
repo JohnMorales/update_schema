@@ -1,6 +1,0 @@
-development:
-  adapter: mysql2
-  database: ten4contact
-  username: ten4contact
-  password: p@ss
-  host: 172.17.0.3
