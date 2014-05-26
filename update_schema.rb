@@ -4,6 +4,7 @@ require 'yaml'
 require 'pry'
 require 'pry-debugger'
 require 'mysql2'
+require 'optparse'
 
 class DatabaseClient
   def confirm_version_table
@@ -25,7 +26,7 @@ class DatabaseClient
     get_single_column self.class::GET_APPLIED_SCRIPTS
   end
 
-  def apply_script sql_script_file
+  def apply_script sql_script_file, opts
     sql_text = File.read(sql_script_file)
     sql_chunks = sql_text.split(/;/)
     begin_trans
@@ -34,7 +35,7 @@ class DatabaseClient
       next if hunk =~ /\A\s*\Z/
       execute_sql hunk
     end
-    record_script_applied sql_script_file
+    record_script_applied sql_script_file if opts[:record]
     commit_trans
     puts "Applied #{File.basename(sql_script_file)}."
   rescue
@@ -129,7 +130,7 @@ class UpdateSchemaBase
 end
 
 class RunOneFile < UpdateSchemaBase
-  def self.run sql_file
+  def self.run sql_file, opts
     config = File.basename(sql_file, ".sql")
     db = get_database_client File.join(File.dirname(sql_file), "#{config}.yml")
 
@@ -137,12 +138,12 @@ class RunOneFile < UpdateSchemaBase
 
     applied_scripts = db.get_applied_scripts
 
-    db.apply_script(sql_file) unless applied_scripts.include?(sql_file)
+    db.apply_script(sql_file, opts) unless applied_scripts.include?(sql_file)
   end
 end
 
 class UpdateSchema < UpdateSchemaBase
-  def self.run schema_dir
+  def self.run schema_dir, opts
 
     db = get_database_client "#{schema_dir}/database.yml"
     db.confirm_version_table
@@ -156,25 +157,35 @@ class UpdateSchema < UpdateSchemaBase
       # Skip any files that does not start with a sequence of numbers.
       next unless File.basename(script) =~ /^\d+/
 
-      db.apply_script script
+      db.apply_script script, opts
     end
   end
 end
 
 USAGE=<<USAGE
-usage: update_schema schema_dir
+usage: update_schema [-n] schema_dir
  Where schema_dir contains a database configuration file (database.yml) and SQL script files.
+options:
+  -n,--no-record Does not record the execution of the script file(s), useful when you want the script to be re-runnable.
 USAGE
 
-first_arg = ARGV[0]
+options = { :record => true }
+OptionParser.new do |opts|
+  opts.on("-n", "--no-record", "Do not record the script(s) applied") do |v|
+    options[:record] = false
+  end
+end.parse!
+
+
+first_arg = ARGV.pop
 unless first_arg && (Dir.exists?(first_arg) || File.exists?(first_arg))
   puts USAGE
   exit 1
 end
 
 if File.file? first_arg
-  RunOneFile.run first_arg
+  RunOneFile.run first_arg, options
   exit
 end
 
-UpdateSchema.run first_arg.chomp('/')
+UpdateSchema.run first_arg.chomp('/'), options

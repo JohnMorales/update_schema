@@ -37,9 +37,10 @@ does not start with a number series.
 That said if call it with a single argument that is a sql script, it will
 assume that you want to execute an adhoc script, it will look for a database
 configuration file of the same name to be used to connect to the database. This
-could be used to to create the initial database and user. It will record the
-execution of this script in the default database (update_schema_db) if one is
-not assigned in the configuration.
+could be used to to create the initial database and user. Unless the -n option
+is provided, It will record the execution of this script. The script will be
+recorded in the default database (update_schema_db) if there is not a database
+assigned in the configuration.
 
 
 ##Running tests

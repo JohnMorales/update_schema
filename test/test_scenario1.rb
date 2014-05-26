@@ -2,7 +2,7 @@ require 'minitest/autorun'
 
 class SunnyDayTests < Minitest::Unit::TestCase
   def setup
-    result = `./update_schema.rb test/schema_scenario1/setup.sql`
+    result = `./update_schema.rb -n test/schema_scenario1/setup.sql`
     raise result if $?.exitstatus > 0
     puts result
   end
